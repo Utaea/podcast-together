@@ -8,7 +8,11 @@
     "dev-force": "vite --force",
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
-    "start": "npx http-server -P http://127.0.0.1:${PORT} ./dist"
+    "start": "npx http-server -P http://127.0.0.1:${PORT} ./dist",
+    "cf:worker:dev": "npm --prefix worker run dev",
+    "cf:worker:typecheck": "npm --prefix worker run typecheck",
+    "cf:worker:migrate": "npm --prefix worker run d1:migrate",
+    "cf:worker:deploy": "npm --prefix worker run deploy"
   },
   "engines": {
     "node": ">=20"
