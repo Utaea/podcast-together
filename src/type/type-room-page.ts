@@ -25,6 +25,7 @@ export interface PageParticipant {
   nickName: string
   enterStr: string      // xx 分钟前进入
   isMe: boolean
+  isOwner: boolean
 }
 
 export interface PageData {
@@ -34,7 +35,9 @@ export interface PageData {
   participants: PageParticipant[],
   showMoreBox: boolean,
   amIOwner: boolean,
+  ownerGuestId: string,
   everyoneCanOperatePlayer: "Y" | "N"
+  everyoneCanChangeContent: "Y" | "N"
 }
 
 type SpeedRate = "0.8" | "1" | "1.2" | "1.5" | "1.7"
@@ -48,14 +51,15 @@ export interface RoomStatus {
   operator: string
   contentStamp: number
   operateStamp: number
+  ownerGuestId?: string
   everyoneCanOperatePlayer?: "Y" | "N"
+  everyoneCanChangeContent?: "Y" | "N"
 }
 
 export interface WsMsgRes {
-  responseType: "CONNECTED" | "NEW_STATUS" | "HEARTBEAT"
+  responseType: "CONNECTED" | "NEW_STATUS" | "HEARTBEAT" | "NEW_CONTENT"
   roomStatus?: RoomStatus
+  content?: ContentData
 }
 
 export type RevokeType = "ws" | "http" | "check"
-
-

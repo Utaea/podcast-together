@@ -63,14 +63,23 @@ const {
     :class="{ 'cui-modal-container_show': teShow }"
   >
     <div class="cui-modal-bg"></div>
-    <div class="cui-modal-box">
+    <div class="cui-modal-box" :class="{ 'cui-modal-box_create-like': teData.mode === 'createLikeUrl' }">
       <h1 v-if="teData.title">{{ teData.title }}</h1>
-      <input class="cui-text-editor-input" 
+      <input v-if="!teData.multiline"
+        class="cui-text-editor-input"
+        :class="{ 'cui-text-editor-input_create-like': teData.mode === 'createLikeUrl' }"
         v-model="teData.value" 
         ref="textEditorInputEl" 
         :placeholder="teData.placeholder ? teData.placeholder: '请输入文字'"
         :maxlength="teData.maxLength"
       />
+      <textarea v-else
+        class="cui-text-editor-input cui-text-editor-textarea"
+        v-model="teData.value"
+        ref="textEditorInputEl"
+        :placeholder="teData.placeholder ? teData.placeholder: '请输入文字'"
+        :maxlength="teData.maxLength"
+      ></textarea>
       <div class="cui-modal-btns">
         <div 
           class="cui-modal-btn"
@@ -220,6 +229,45 @@ const {
   &::-webkit-input-placeholder {
     color: var(--note-color);
   }
+}
+
+.cui-modal-box_create-like {
+  h1 {
+    font-size: 38px;
+    line-height: 50px;
+    letter-spacing: 2px;
+    margin-bottom: 40px;
+  }
+
+  .cui-modal-btns {
+    margin-top: 8px;
+  }
+
+  @media screen and (max-width: 640px) {
+    h1 {
+      font-size: 32px;
+      line-height: 44px;
+      margin-bottom: 30px;
+    }
+  }
+}
+
+.cui-text-editor-input_create-like {
+  font-size: 32px;
+  line-height: 46px;
+  color: var(--desc-color);
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.cui-text-editor-textarea {
+  min-height: 108px;
+  resize: vertical;
+  text-align: left;
+  border-radius: 8px;
+  background-color: var(--card-color);
+  box-sizing: border-box;
+  padding: 10px 12px;
 }
 
 .cui-btn_disabled {

@@ -16,6 +16,8 @@ interface TextEditorParam {
   minLength?: number
   maxLength?: number
   trim?: boolean         // 默认为 true
+  multiline?: boolean
+  mode?: "default" | "createLikeUrl"
   success?: (res: TextEditorSuccessRes) => void
 }
 
@@ -39,6 +41,8 @@ const teData = reactive({
   minLength: DEFAULT_MIN_LENGTH,
   maxLength: DEFAULT_MAX_LENGTH,
   trim: true,
+  multiline: false,
+  mode: "default" as "default" | "createLikeUrl",
 })
 
 const canSubmit = computed(() => {
@@ -106,6 +110,12 @@ const showTextEditor = async (opt: TextEditorParam): Promise<TextEditorSuccessRe
 
   if(typeof opt.trim === "boolean") teData.trim = opt.trim
   else teData.trim = true
+
+  if(typeof opt.multiline === "boolean") teData.multiline = opt.multiline
+  else teData.multiline = false
+
+  if(opt.mode === "createLikeUrl") teData.mode = "createLikeUrl"
+  else teData.mode = "default"
 
   if(opt.success) {
     _success = opt.success

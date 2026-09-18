@@ -3,7 +3,7 @@
 import util from "../utils/util"
 
 const _env = util.getEnv()
-const apiUrl = _env.API_URL + "/"
+const apiUrl = _env.API_URL ? `${_env.API_URL}/` : "/"
 
 export default {
   ROOM_OPERATE: apiUrl + "room-operate",

@@ -8,10 +8,13 @@ interface WsCallbacks {
   onerror?: (res: Event) => void
 }
 
-export function initWebSocket(callbacks: WsCallbacks) {
+export function initWebSocket(roomId: string, callbacks: WsCallbacks) {
   const _env = util.getEnv()
   const { WEBSOCKET_URL } = _env
-  let ws = new WebSocket(WEBSOCKET_URL)
+  const wsBase = WEBSOCKET_URL.replace(/\/$/, "")
+  const normalizedBase = wsBase.endsWith("/ws") ? wsBase.slice(0, -3) : wsBase
+  const wsUrl = `${normalizedBase}/ws/${encodeURIComponent(roomId)}`
+  let ws = new WebSocket(wsUrl)
   ws.onopen = (socket: Event) => {
     console.log("ws opened.........")
     console.log(socket)

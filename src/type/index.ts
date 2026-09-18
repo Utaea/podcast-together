@@ -49,7 +49,9 @@ export interface RoRes {
   participants: Participant[]
   guestId?: string
   iamOwner?: "Y" | "N"
+  ownerGuestId?: string
   everyoneCanOperatePlayer?: "Y" | "N"
+  everyoneCanChangeContent?: "Y" | "N"
 }
 
 

@@ -10,6 +10,7 @@ export interface PlayerCallbacks {
   playing?: (e: Event) => void
   ratechange?: (e: Event) => void
   seeked?: (e: Event) => void
+  ended?: (e: Event) => void
 }
 
 export interface AudioData {
@@ -65,7 +66,9 @@ export function initPlayer(
     console.log(" ")
   })
 
-  player.on("ended", (e: Event) => {})
+  player.on("ended", (e: Event) => {
+    callbacks.ended && callbacks.ended(e)
+  })
 
   player.on("error", (e: Event) => {
     console.log("player error.............")

@@ -41,10 +41,30 @@ const getPromise = <T = any>(val: T): Promise<T> => {
   return new Promise(a => a(val)) 
 }
 
+const getOrigin = (): string => {
+  if(typeof window === "undefined") return ""
+  return window.location.origin
+}
+
+const toWebSocketOrigin = (origin: string): string => {
+  if(!origin) return ""
+  if(origin.indexOf("https://") === 0) return "wss://" + origin.substring(8)
+  if(origin.indexOf("http://") === 0) return "ws://" + origin.substring(7)
+  return origin
+}
+
+const trimSlash = (url: string): string => {
+  if(!url) return ""
+  return url.replace(/\/+$/, "")
+}
+
 const getEnv = (): EnvType => {
   const DEV = import.meta.env.DEV
-  const WEBSOCKET_URL = import.meta.env.VITE_WEBSOCKET_URL
-  const API_URL = import.meta.env.VITE_API_URL
+  const origin = getOrigin()
+  const apiFromEnv = import.meta.env.VITE_API_URL
+  const wsFromEnv = import.meta.env.VITE_WEBSOCKET_URL
+  const API_URL = trimSlash(apiFromEnv || origin)
+  const WEBSOCKET_URL = trimSlash(wsFromEnv || toWebSocketOrigin(origin))
   const HEARTBEAT_PERIOD = import.meta.env.VITE_HEARTBEAT_PERIOD ?? "15"
   const THIRD_PARTY_SETTING_URL = import.meta.env.VITE_THIRD_PARTY_SETTING_URL
   const CONTACT_EMAIL = import.meta.env.VITE_CONTACT_EMAIL
@@ -151,4 +171,3 @@ export default {
   getLowerCaseNum,
   getUrls,
 }
-

@@ -19,7 +19,7 @@ import ptApi from "../../../utils/pt-api"
 import { initPlayer } from "./init-player"
 import { initWebSocket, sendToWebSocket } from "./init-websocket"
 import { shareData } from "./init-share"
-import { request_enter, request_heartbeat, request_leave } from "./room-request"
+import { request_enter, request_heartbeat, request_leave, request_parse } from "./room-request"
 
 // 一些常量
 const COLLECT_TIMEOUT = 300    // 收集最新状态的最小间隔
@@ -44,7 +44,9 @@ const pageData: PageData = reactive({
   participants: [],
   showMoreBox: false,   // 是否要展示 “展开更多” 的按钮
   amIOwner: false,
-  everyoneCanOperatePlayer: "Y"
+  ownerGuestId: "",
+  everyoneCanOperatePlayer: "Y",
+  everyoneCanChangeContent: "N",
 })
 
 // 其他杂七杂八的数据
@@ -57,6 +59,7 @@ let srcDuration: number = 0     // 资源总时长（秒），如果为 0 代表
 let waitPlayer: Promise<boolean>
 let latestStatus: RoomStatus    // 最新的播放器状态
 let isShowingAutoPlayPolicy: boolean = false  // 当前是否已在展示 autoplay policy 的弹窗
+let playerReadyResolved = false
 let heartbeatNum = 0            // 心跳的次数
 let receiveWsNum = 0            // 收到 web-socket 的次数
 let pausedSec = 0               // 已经暂停的秒数
@@ -66,6 +69,8 @@ let lastOperateLocalStamp = 0        // 上一个本地设置远端服务器的�
 let lastNewStatusFromWsStamp = 0    // 上一次收到 web-socket NEW_STATUS 的时间戳
 let lastHeartbeatStamp = 0          // 上一次心跳的时间戳
 let lastReConnectWs = 0
+let pendingApplyStatusOnPlayerReady = false
+let lastOwnerGuestId = ""
 
 // 是否为远端调整播放器状态，如果是，则在监听 player 各回调时不往下执行
 let isRemoteSetSeek = false
@@ -112,6 +117,62 @@ const onEveryoneCanOperatePlayerChange = (opt: { checked: boolean }) => {
   collectLatestStatus()
 }
 
+const onEveryoneCanChangeContentChange = (opt: { checked: boolean }) => {
+  if(!pageData.amIOwner) return
+  pageData.everyoneCanChangeContent = opt.checked ? "Y" : "N"
+  collectLatestStatus()
+}
+
+const onChangePodcast = async () => {
+  if(!pageData.amIOwner && pageData.everyoneCanChangeContent !== "Y") {
+    showChangeContentFailed()
+    return
+  }
+  const textRes = await cui.showTextEditor({
+    title: "切换节目",
+    value: "",
+    placeholder: "请黏贴单集链接",
+    maxLength: 1000,
+    multiline: false,
+    mode: "createLikeUrl",
+  })
+  if(!textRes.confirm || !textRes.value) return
+
+  const rawInput = textRes.value.trim()
+  const urls = util.getUrls(rawInput)
+  const normalized = rawInput.replace(/\s+/g, "")
+  const link = urls[0] || normalized
+  if(!link || link.length < 10 || link.indexOf("http") !== 0) {
+    cui.showModal({
+      title: "链接格式不正确",
+      content: "请填写完整的 http(s) 播客链接",
+      showCancel: false,
+    })
+    return
+  }
+
+  cui.showLoading({ title: "解析中.." })
+  const parseRes = await request_parse(link)
+  cui.hideLoading()
+  if(!parseRes || parseRes.code !== "0000" || !parseRes.data) {
+    cui.showModal({
+      title: "解析失败",
+      content: "请稍后重试或更换链接",
+      showCancel: false,
+    })
+    return
+  }
+
+  const send = {
+    operateType: "SET_CONTENT",
+    roomId: pageData.roomId,
+    "x-pt-local-id": localId,
+    "x-pt-stamp": time.getTime(),
+    content: parseRes.data,
+  }
+  sendToWebSocket(ws, send)
+}
+
 export const useRoomPage = () => {
   const rr = useRouteAndPtRouter()
   router = rr.router
@@ -128,6 +189,8 @@ export const useRoomPage = () => {
     toContact, 
     toEditMyName,
     onEveryoneCanOperatePlayerChange,
+    onEveryoneCanChangeContentChange,
+    onChangePodcast,
   }
 }
 
@@ -196,9 +259,13 @@ function enterResToErrState(res?: RequestRes) {
 function afterEnter(roRes: RoRes) {
   guestId = roRes?.guestId ?? ""
   pageData.content = roRes.content
-  pageData.amIOwner = roRes?.iamOwner === "Y" ? true : false
-  pageData.participants = showParticipants(roRes.participants, guestId)
+  pageData.ownerGuestId = roRes.ownerGuestId ?? ""
+  pageData.amIOwner = pageData.ownerGuestId ? pageData.ownerGuestId === guestId : roRes?.iamOwner === "Y" ? true : false
+  pageData.everyoneCanOperatePlayer = roRes.everyoneCanOperatePlayer ?? "Y"
+  pageData.everyoneCanChangeContent = roRes.everyoneCanChangeContent ?? "N"
+  pageData.participants = showParticipants(roRes.participants, guestId, pageData.ownerGuestId)
   pageData.showMoreBox = handleShowMoreBox(roRes.content)
+  lastOwnerGuestId = pageData.ownerGuestId
 
   createPlayer()
   heartbeat()
@@ -208,6 +275,8 @@ function afterEnter(roRes: RoRes) {
 
 // 创建播放器
 function createPlayer() {
+  srcDuration = 0
+  playerReadyResolved = false
   let content = pageData.content as ContentData
 
   waitPlayer = new Promise((a: SimpleFunc) => {
@@ -224,9 +293,16 @@ function createPlayer() {
   const durationchange = (duration?: number) => {
     if(duration) srcDuration = duration
     showPage()
+    maybeApplyLatestStatusWhenReady("durationchange")
   }
-  const canplay = (e: Event) => {}
-  const loadeddata = (e: Event) => {}
+  const canplay = (e: Event) => {
+    showPage()
+    maybeApplyLatestStatusWhenReady("canplay")
+  }
+  const loadeddata = (e: Event) => {
+    showPage()
+    maybeApplyLatestStatusWhenReady("loadeddata")
+  }
 
   const pause = (e: Event) => {
     playStatus = "PAUSED"
@@ -259,6 +335,10 @@ function createPlayer() {
     }
     collectLatestStatus()
   }
+  const ended = (e: Event) => {
+    playStatus = "PAUSED"
+    collectLatestStatus()
+  }
   const callbacks = {
     durationchange,
     canplay,
@@ -266,7 +346,8 @@ function createPlayer() {
     pause,
     playing,
     ratechange,
-    seeked
+    seeked,
+    ended,
   }
 
   const onBeforeClick = (target: string): boolean => {
@@ -292,6 +373,18 @@ function showOperateFailed() {
   cui.showModal({
     title: "提示",
     content: "房主已设置仅房主能操作播放器。不过，你仍然可以调整是否静音（在\"...\"里）。",
+    showCancel: false,
+  })
+}
+
+let lastShowChangeContentFailed = 0
+function showChangeContentFailed() {
+  const now = time.getLocalTime()
+  if(lastShowChangeContentFailed + 500 > now) return
+  lastShowChangeContentFailed = now
+  cui.showModal({
+    title: "提示",
+    content: "房主已设置仅房主能切换节目。",
     showCancel: false,
   })
 }
@@ -330,9 +423,12 @@ async function checkPlayerReadyAgain() {
 }
 
 function showPage(): void {
+  if(!playerReadyResolved) {
+    playerReadyResolved = true
+    playerAlready(true)
+  }
   if(pageData.state <= 2) {
     pageData.state = 3
-    playerAlready(true)
   }
 }
 
@@ -359,6 +455,7 @@ function collectLatestStatus() {
     }
     if(pageData.amIOwner) {
       param.everyoneCanOperatePlayer = pageData.everyoneCanOperatePlayer
+      param.everyoneCanChangeContent = pageData.everyoneCanChangeContent
     }
     sendToWebSocket(ws, param)
     checkOperated()
@@ -395,8 +492,13 @@ function heartbeat() {
   }
 
   const _newRoomStatus = (roRes: RoRes) => {
+    const oldAudioUrl = pageData.content?.audioUrl ?? ""
     pageData.content = roRes.content
-    pageData.participants = showParticipants(roRes.participants, guestId)
+    const nextOwnerGuestId = roRes.ownerGuestId ?? pageData.ownerGuestId
+    pageData.ownerGuestId = nextOwnerGuestId
+    pageData.amIOwner = nextOwnerGuestId ? nextOwnerGuestId === guestId : pageData.amIOwner
+    pageData.participants = showParticipants(roRes.participants, guestId, nextOwnerGuestId)
+    notifyOwnerChanged(nextOwnerGuestId)
 
     const now = time.getLocalTime()
     const diff1 = now - lastOperateLocalStamp
@@ -422,8 +524,17 @@ function heartbeat() {
       contentStamp: roRes.contentStamp,
       operateStamp: roRes.operateStamp
     }
-    if(roRes.everyoneCanOperatePlayer) {
+    const newAudioUrl = roRes.content?.audioUrl ?? ""
+    if(newAudioUrl && oldAudioUrl && newAudioUrl !== oldAudioUrl) {
+      pageData.showMoreBox = handleShowMoreBox(roRes.content)
+      recreatePlayerForNewContent(latestStatus)
+      return
+    }
+    if(roRes.everyoneCanOperatePlayer !== undefined) {
       pageData.everyoneCanOperatePlayer = roRes.everyoneCanOperatePlayer
+    }
+    if(roRes.everyoneCanChangeContent !== undefined) {
+      pageData.everyoneCanChangeContent = roRes.everyoneCanChangeContent
     }
     receiveNewStatus("http")
   }
@@ -513,14 +624,24 @@ async function resume() {
   }
   let roRes = res.data as RoRes
   guestId = roRes.guestId ?? ""
+  pageData.ownerGuestId = roRes.ownerGuestId ?? pageData.ownerGuestId
+  pageData.amIOwner = pageData.ownerGuestId ? pageData.ownerGuestId === guestId : pageData.amIOwner
   pageData.content = roRes.content
-  pageData.participants = showParticipants(roRes.participants, guestId)
+  pageData.participants = showParticipants(roRes.participants, guestId, pageData.ownerGuestId)
+  notifyOwnerChanged(pageData.ownerGuestId)
   heartbeat()
   connectWebSocket()
 }
 
 // 使用 web-socket 去建立连接
 function connectWebSocket() {
+  if(ws) {
+    try {
+      ws.close()
+    }
+    catch(err) {}
+    ws = null
+  }
   receiveWsNum = 0
 
   const onmessage = (msgRes: WsMsgRes) => {
@@ -537,10 +658,38 @@ function connectWebSocket() {
       // console.log(" ")
       lastNewStatusFromWsStamp = time.getLocalTime()
       latestStatus = roomStatus
-      if(roomStatus.everyoneCanOperatePlayer) {
+      if(roomStatus.ownerGuestId !== undefined) {
+        pageData.ownerGuestId = roomStatus.ownerGuestId
+        pageData.amIOwner = roomStatus.ownerGuestId === guestId
+        applyOwnerFlagToPageParticipants(roomStatus.ownerGuestId)
+        notifyOwnerChanged(roomStatus.ownerGuestId)
+      }
+      if(roomStatus.everyoneCanOperatePlayer !== undefined) {
         pageData.everyoneCanOperatePlayer = roomStatus.everyoneCanOperatePlayer
       }
+      if(roomStatus.everyoneCanChangeContent !== undefined) {
+        pageData.everyoneCanChangeContent = roomStatus.everyoneCanChangeContent
+      }
       receiveNewStatus()
+    }
+    else if(rT === "NEW_CONTENT" && roomStatus && msgRes.content) {
+      lastNewStatusFromWsStamp = time.getLocalTime()
+      pageData.content = msgRes.content
+      pageData.showMoreBox = handleShowMoreBox(msgRes.content)
+      latestStatus = roomStatus
+      if(roomStatus.ownerGuestId !== undefined) {
+        pageData.ownerGuestId = roomStatus.ownerGuestId
+        pageData.amIOwner = roomStatus.ownerGuestId === guestId
+      }
+      if(roomStatus.everyoneCanOperatePlayer !== undefined) {
+        pageData.everyoneCanOperatePlayer = roomStatus.everyoneCanOperatePlayer
+      }
+      if(roomStatus.everyoneCanChangeContent !== undefined) {
+        pageData.everyoneCanChangeContent = roomStatus.everyoneCanChangeContent
+      }
+      applyOwnerFlagToPageParticipants(pageData.ownerGuestId)
+      notifyOwnerChanged(pageData.ownerGuestId)
+      recreatePlayerForNewContent(roomStatus)
     }
     else if(rT === "HEARTBEAT") {
       console.log("收到 ws 的HEARTBEAT.......")
@@ -552,22 +701,50 @@ function connectWebSocket() {
     const { code } = closeEvent
     const now = time.getLocalTime()
 
-    // 监听关闭的状态码，1006 为非预期的情况
+    // code=1000 代表正常关闭（比如主动离开房间），其余情况尽量重连
     // https://developer.mozilla.org/en-US/docs/Web/API/CloseEvent/code
-    if(code === 1006) {
-      // 做一个防抖节流
-      if(lastReConnectWs + 5000 > now) return
-      lastHeartbeatStamp = now
-      connectWebSocket()
-    }
+    if(code === 1000) return
+    // 做一个防抖节流
+    if(lastReConnectWs + 5000 > now) return
+    lastReConnectWs = now
+    lastHeartbeatStamp = now
+    connectWebSocket()
   }
 
   const callbacks = {
     onmessage,
     onclose
   }
-  ws = initWebSocket(callbacks)
+  ws = initWebSocket(pageData.roomId, callbacks)
   checkWebSocket()
+}
+
+function recreatePlayerForNewContent(roomStatus: RoomStatus) {
+  playStatus = "PAUSED"
+  isRemoteSetSeek = false
+  isRemoteSetPlaying = false
+  isRemoteSetPaused = false
+  isRemoteSetSpeedRate = false
+  pendingApplyStatusOnPlayerReady = true
+
+  if(player) {
+    try {
+      player.destroy()
+    }
+    catch(err) {}
+    player = null
+  }
+  createPlayer()
+  shareData(pageData.content as ContentData, roomStatus.playStatus, nickName)
+  receiveNewStatus("check")
+}
+
+function maybeApplyLatestStatusWhenReady(trigger: string) {
+  if(!pendingApplyStatusOnPlayerReady) return
+  if(!latestStatus?.roomId || latestStatus.roomId !== pageData.roomId) return
+  pendingApplyStatusOnPlayerReady = false
+  console.log(`切换节目后播放器已就绪(${trigger})，重新应用远端状态...`)
+  receiveNewStatus("check")
 }
 
 // 等待 5s 查看 web-socket 是否连接
@@ -617,20 +794,19 @@ async function receiveNewStatus(fromType: RevokeType = "ws") {
 
   // 判断播放状态
   let rPlayStatus = latestStatus.playStatus
-  let diff2 = (srcDuration * 1000) - contentStamp
+  let diff2 = Number.MAX_SAFE_INTEGER
+  if(srcDuration > 1) {
+    diff2 = (srcDuration * 1000) - contentStamp
+  }
   if(rPlayStatus !== playStatus) {
     // 如果剩下 1s 就结束了 还要播放，进行阻挡
-    if(rPlayStatus === "PLAYING" && diff2 < 1000) return
+    if(rPlayStatus === "PLAYING" && diff2 < 1000) {
+      console.log("远端要求播放，但资源接近末尾，忽略本次播放")
+      return
+    }
     if(rPlayStatus === "PLAYING" && !isShowingAutoPlayPolicy) {
       console.log("远端请求播放......")
-      isRemoteSetPlaying = true
-      try {
-        player.play()
-      }
-      catch(err) {
-        console.log("播放失败.....")
-        console.log(err)
-      }
+      await tryAutoPlayWithMutedFallback()
       checkIsPlaying()
     }
     else if(rPlayStatus === "PAUSED") {
@@ -638,6 +814,35 @@ async function receiveNewStatus(fromType: RevokeType = "ws") {
       isRemoteSetPaused = true
       player.pause()
     }
+  }
+}
+
+async function tryAutoPlayWithMutedFallback(): Promise<void> {
+  const tryPlay = async () => {
+    isRemoteSetPlaying = true
+    return await player.play()
+  }
+
+  try {
+    await tryPlay()
+    return
+  }
+  catch(err) {
+    console.log("直接播放失败，尝试静音自动播放.....")
+    console.log(err)
+  }
+
+  const oldMuted = !!player.muted
+  try {
+    player.muted = true
+    await tryPlay()
+    return
+  }
+  catch(err) {
+    console.log("静音自动播放也失败.....")
+    console.log(err)
+    player.muted = oldMuted
+    await handleAutoPlayPolicy()
   }
 }
 
@@ -688,6 +893,31 @@ async function handleAutoPlayPolicy() {
   if(latestStatus.playStatus === "PLAYING") {
     isRemoteSetPlaying = true
     player.play()
+  }
+}
+
+function notifyOwnerChanged(ownerGuestId: string) {
+  if(!ownerGuestId) return
+  if(!lastOwnerGuestId) {
+    lastOwnerGuestId = ownerGuestId
+    return
+  }
+  if(lastOwnerGuestId === ownerGuestId) return
+  const becameOwner = ownerGuestId === guestId
+  lastOwnerGuestId = ownerGuestId
+  if(becameOwner) {
+    cui.showModal({
+      title: "你已成为房主",
+      content: "由于原房主离开或掉线，你已自动接管房间。",
+      showCancel: false,
+    })
+  }
+}
+
+function applyOwnerFlagToPageParticipants(ownerGuestId: string) {
+  const list = pageData.participants
+  for(let i=0; i<list.length; i++) {
+    list[i].isOwner = list[i].guestId === ownerGuestId
   }
 }
 

@@ -18,7 +18,9 @@ const {
   toHome, 
   toContact, 
   toEditMyName, 
-  onEveryoneCanOperatePlayerChange 
+  onEveryoneCanOperatePlayerChange,
+  onEveryoneCanChangeContentChange,
+  onChangePodcast,
 } = useRoomPage()
 const state = toRef(pageData, "state")
 const { 
@@ -89,7 +91,7 @@ const onTapShowMore = () => {
       <div v-if="pageData.participants?.length" class="room-listening">
         <div class="rl-title">正在听的有</div>
         <div class="rl-mini-btn" v-if="pageData.amIOwner" @click="onTapManageBtn">
-          <span>管理</span>
+          <span>设置</span>
         </div>
       </div>
       <div v-if="pageData.participants?.length"
@@ -101,6 +103,9 @@ const onTapShowMore = () => {
               :class="{ 'rp-nickName_pointer': item.isMe }" 
               @click="onTapEditMyName(item)"
             >
+              <div class="rp-owner-icon-wrap">
+                <div v-if="item.isOwner" class="rp-owner-icon" title="房主">👑</div>
+              </div>
               <span>{{ item.nickName }}</span>
               <div v-if="item.isMe" class="div-bg-img rp-nickName-icon"></div>
             </div>
@@ -114,6 +119,10 @@ const onTapShowMore = () => {
         <div class="room-btn" @click="onTapLeave">
           <div class="div-bg-img room-btn-icon room-btn-icon_leave"></div>
           <span>离开</span>
+        </div>
+        <div class="room-btn" v-if="pageData.amIOwner || pageData.everyoneCanChangeContent === 'Y'" @click="onChangePodcast">
+          <div class="div-bg-img room-btn-icon room-btn-icon_change"></div>
+          <span>换节目</span>
         </div>
         <div class="room-btn room-btn-main" @click="onTapShare">
           <div class="div-bg-img room-btn-icon room-btn-icon_share"></div>
@@ -180,8 +189,10 @@ const onTapShowMore = () => {
   <RoomManagePopup 
     :show="showManagePopup" 
     :everyoneCanOperatePlayer="pageData.everyoneCanOperatePlayer"
+    :everyoneCanChangeContent="pageData.everyoneCanChangeContent"
     @tapmask="onTapManageMask"
     @everyoneCanOperatePlayerChange="onEveryoneCanOperatePlayerChange"
+    @everyoneCanChangeContentChange="onEveryoneCanChangeContentChange"
   ></RoomManagePopup>
   
 </template>
@@ -350,6 +361,7 @@ const onTapShowMore = () => {
 
     .rp-nickName {
       display: flex;
+      align-items: center;
       max-width: 60%;
       font-size: var(--desc-font);
       line-height: 22px;
@@ -357,12 +369,26 @@ const onTapShowMore = () => {
       padding-right: 10px;
       user-select: text;
 
+      .rp-owner-icon-wrap {
+        width: 16px;
+        min-width: 16px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-right: 4px;
+      }
+
       .rp-nickName-icon {
         width: 22px;
         height: 22px;
-        margin-left: 6px;
+        margin-left: 4px;
         opacity: .56;
         background-image: v-bind("'url(' + (theme === 'light' ? images.IC_EDIT : images.IC_EDIT_DM) + ')'");
+      }
+
+      .rp-owner-icon {
+        font-size: 13px;
+        line-height: 22px;
       }
     }
 
@@ -432,6 +458,10 @@ const onTapShowMore = () => {
         &.room-btn-icon_share {
           opacity: v-bind("theme === 'light' ? .98 : .66");
           background-image: v-bind("'url(' + (theme === 'light' ? images.IC_SHARE : images.IC_SHARE_DM) + ')'");
+        }
+
+        &.room-btn-icon_change {
+          background-image: v-bind("'url(' + (theme === 'light' ? images.IC_EDIT : images.IC_EDIT_DM) + ')'");
         }
       }
 

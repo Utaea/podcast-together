@@ -10,14 +10,21 @@ const props = defineProps({
   everyoneCanOperatePlayer: {
     type: String,
     default: "",
+  },
+  everyoneCanChangeContent: {
+    type: String,
+    default: "",
   }
 })
-const emit = defineEmits(["tapmask", "everyoneCanOperatePlayerChange"])
+const emit = defineEmits(["tapmask", "everyoneCanOperatePlayerChange", "everyoneCanChangeContentChange"])
 const onTapMask = () => {
   emit("tapmask", { msg: "点了蒙层" })
 }
 const onEveryoneCanOperatePlayerChange = (opt: { checked: boolean }) => {
   emit("everyoneCanOperatePlayerChange", opt)
+}
+const onEveryoneCanChangeContentChange = (opt: { checked: boolean }) => {
+  emit("everyoneCanChangeContentChange", opt)
 }
 
 const doNothing = (e: Event) => {
@@ -33,7 +40,7 @@ const doNothing = (e: Event) => {
   >
     <div class="rmp-box" @click="doNothing">
       <div class="rmp-first-bar">
-        <div class="rmpf-title">管理</div>
+        <div class="rmpf-title">设置</div>
       </div>
       <div class="rmp-bar">
         <div class="rmpb-hd">
@@ -45,7 +52,17 @@ const doNothing = (e: Event) => {
           ></pt-switch>
         </div>
       </div>
-      <div class="rmp-btn">
+      <div class="rmp-bar">
+        <div class="rmpb-hd">
+          <span>允许所有人切换节目</span>
+        </div>
+        <div class="rmpb-footer">
+          <pt-switch :checked="props.everyoneCanChangeContent === 'Y'"
+            @change="onEveryoneCanChangeContentChange"
+          ></pt-switch>
+        </div>
+      </div>
+      <div class="rmp-btn rmp-btn-close">
         <pt-button text="关闭" type="other" @click="onTapMask"></pt-button>
       </div>
     </div>
@@ -127,8 +144,12 @@ const doNothing = (e: Event) => {
 .rmp-btn {
   width: 40%;
   min-width: 140px;
-  padding: 30px 0 6px;
+  padding: 18px 0 6px;
   margin: auto;
+}
+
+.rmp-btn-close {
+  padding-top: 6px;
 }
 
 </style>
