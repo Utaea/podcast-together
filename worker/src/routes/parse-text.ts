@@ -4,6 +4,7 @@ import { checkParseTextEntry } from "../utils/validate"
 
 const MAX_FETCH_MILLI = 4000
 const WX_AUDIO_URL = "https://res.wx.qq.com/voice/getvoice?mediaid="
+const ITUNES_LOOKUP_URL = "https://itunes.apple.com/lookup"
 
 interface ParseBody {
   link?: string
@@ -19,14 +20,101 @@ export async function handleParseText(request: Request): Promise<Response> {
     return jsonResponse({ code: "0000", data: { infoType: "podcast", audioUrl: link } })
   }
 
+  const appleResult = await parseApplePodcast(link)
+  if (appleResult) return jsonResponse({ code: "0000", data: appleResult })
+
   const html = await fetchLink(link)
   if (!html) return jsonResponse({ code: "E4004" })
   return jsonResponse(parseHtml(html, link))
 }
 
 function isCdnLink(link: string): boolean {
-  const reg = /^http(s)?:\/\/[\w\.-]*\w{1,32}\.\w{2,6}\/\S+\.(mp3|m4a)[\?=\w-]*$/i
-  return reg.test(link)
+  try {
+    const url = new URL(link)
+    return /^\.(mp3|m4a)$/i.test(url.pathname.slice(url.pathname.lastIndexOf(".")))
+  } catch {
+    return false
+  }
+}
+
+interface AppleEpisode {
+  trackId?: number
+  trackName?: string
+  description?: string
+  episodeUrl?: string
+  artworkUrl600?: string
+  artworkUrl100?: string
+  collectionName?: string
+}
+
+interface AppleLookupResponse {
+  results?: AppleEpisode[]
+}
+
+function getAppleEpisodeId(link: string): { collectionId: string; trackId: string; country: string } | undefined {
+  try {
+    const url = new URL(link)
+    if (!/(^|\.)podcasts\.apple\.com$/.test(url.hostname)) return undefined
+
+    const collectionMatch = url.pathname.match(/\/id(\d+)(?:\/|$)/i)
+    const trackId = url.searchParams.get("i")
+    if (!collectionMatch?.[1] || !trackId || !/^\d+$/.test(trackId)) return undefined
+
+    const country = url.pathname.split("/").filter(Boolean)[0]?.toLowerCase()
+    return {
+      collectionId: collectionMatch[1],
+      trackId,
+      country: country && /^[a-z]{2}$/.test(country) ? country : "us",
+    }
+  } catch {
+    return undefined
+  }
+}
+
+async function parseApplePodcast(link: string): Promise<ContentData | undefined> {
+  const ids = getAppleEpisodeId(link)
+  if (!ids) return undefined
+
+  const lookupUrl = new URL(ITUNES_LOOKUP_URL)
+  lookupUrl.searchParams.set("id", ids.collectionId)
+  lookupUrl.searchParams.set("entity", "podcastEpisode")
+  lookupUrl.searchParams.set("limit", "200")
+  lookupUrl.searchParams.set("country", ids.country)
+
+  const result = await fetchJson<AppleLookupResponse>(lookupUrl.toString())
+  const episode = result?.results?.find((item) => String(item.trackId) === ids.trackId)
+  const audioUrl = episode?.episodeUrl
+  if (!audioUrl || !/^https?:\/\//i.test(audioUrl)) return undefined
+
+  return {
+    infoType: "podcast",
+    audioUrl,
+    title: episode?.trackName,
+    description: episode?.description,
+    imageUrl: episode?.artworkUrl600 || episode?.artworkUrl100,
+    linkUrl: link,
+    sourceType: "apple_podcast",
+    seriesName: episode?.collectionName,
+  }
+}
+
+async function fetchJson<T>(link: string): Promise<T | undefined> {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), MAX_FETCH_MILLI)
+  try {
+    const res = await fetch(link, {
+      method: "GET",
+      redirect: "follow",
+      signal: controller.signal,
+      headers: { "user-agent": "Mozilla/5.0 (compatible; PodcastTogetherBot/1.0)" },
+    })
+    if (!res.ok) return undefined
+    return await res.json() as T
+  } catch {
+    return undefined
+  } finally {
+    clearTimeout(timeout)
+  }
 }
 
 async function fetchLink(link: string): Promise<string> {
@@ -75,7 +163,7 @@ function parseHtml(html: string, originLink: string): ResType<ContentData> {
   if (!imageUrl && twitterImage) imageUrl = twitterImage
   if (!title) title = getTitleTag(html)
 
-  const podcastShowJson = getScriptJsonByName(html, "schema:podcast-show")
+  const podcastShowJson = getScriptJson(html, "schema:podcast-show")
   if (podcastShowJson) {
     if (podcastShowJson.url) linkUrl = podcastShowJson.url
     if (podcastShowJson.partOfSeries?.name) seriesName = podcastShowJson.partOfSeries.name
@@ -83,7 +171,8 @@ function parseHtml(html: string, originLink: string): ResType<ContentData> {
     if (podcastShowJson.description) description = podcastShowJson.description
   }
 
-  const podcastEpisodeJson = getScriptJsonByName(html, "schema:podcast-episode")
+  const podcastEpisodeJson = getScriptJson(html, "schema:podcast-episode")
+    || getScriptJson(html, "schema:episode")
   if (podcastEpisodeJson) {
     if (podcastEpisodeJson.name) title = podcastEpisodeJson.name
     if (podcastEpisodeJson.description) description = podcastEpisodeJson.description
@@ -153,9 +242,9 @@ function getTitleTag(html: string): string {
   return m?.[1]?.trim() ?? ""
 }
 
-function getScriptJsonByName(html: string, name: string): any {
+function getScriptJson(html: string, name: string): any {
   const esc = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-  const reg = new RegExp(`<script[^>]*name=["']${esc}["'][^>]*>([\\s\\S]*?)<\\/script>`, "i")
+  const reg = new RegExp(`<script[^>]*(?:(?:name|id)=["']${esc}["']|(?:name|id)=${esc})(?:[^>]*)>([\\s\\S]*?)<\\/script>`, "i")
   const m = html.match(reg)
   if (!m?.[1]) return null
   try {
@@ -198,13 +287,14 @@ function handleForYzyx(html: string) {
 }
 
 function getAudioUrl(html: string, opt: { isMp: boolean }): string {
-  const reg0 = /http(s)?:\/\/[^\s/"']{2,40}\/[^\s"']{2,240}\.(mp3|m4a)\?[^\s/"']{3,240}/gi
-  const m0 = html.match(reg0)
-  if (m0?.[0]) return m0[0]
-
-  const reg1 = /http(s)?:\/\/[^\s/"']{2,40}\/[^\s"']{2,240}\.(mp3|m4a)/gi
-  const m1 = html.match(reg1)
-  if (m1?.[0]) return m1[0]
+  const urls = html.match(/https?:\/\/[^\s"'<>]+/gi) ?? []
+  for (const rawUrl of urls) {
+    const url = rawUrl
+      .replace(/\\\//g, "/")
+      .replace(/&amp;/gi, "&")
+      .replace(/[),};]+$/g, "")
+    if (/\.(mp3|m4a)(?:[?#]|$)/i.test(url)) return url
+  }
 
   if (!opt.isMp) return ""
 
