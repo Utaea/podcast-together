@@ -13,9 +13,10 @@ the static assets together with the Worker.
 - Framework preset: `Vite`
 - Build command: `npm run build`
 - Output directory: `dist`
-- SPA fallback is handled via `public/_redirects`
+- SPA fallback is handled via `config/pages/_redirects` when using Pages
 
-For Pages Git integration, use the repository root as the project root.
+For Pages Git integration, use the repository root as the project root and use
+`npm run pages:build` as the build command. The output directory remains `dist`.
 
 Required environment variables:
 
@@ -52,6 +53,11 @@ npm run cf:worker:migrate
 npm run cf:worker:deploy
 npm run pages:deploy
 ```
+
+The root `npm run build` intentionally does not copy the Pages `_redirects`
+file, because Workers Static Assets provides SPA fallback through
+`not_found_handling = "single-page-application"` and rejects that redirect
+rule as an infinite loop.
 
 The root command used by the Deploy to Cloudflare build is:
 
