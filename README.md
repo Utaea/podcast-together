@@ -1,6 +1,6 @@
 # 一起听播客
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Utaea/podcast-together/tree/main/worker)
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Utaea/podcast-together)
 
 <img src="./resources/screenshot_index.png" width="700" />
 

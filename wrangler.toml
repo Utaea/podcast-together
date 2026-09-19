@@ -1,0 +1,24 @@
+name = "podcast-together"
+main = "worker/src/index.ts"
+compatibility_date = "2026-02-25"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "podcast_together"
+migrations_dir = "worker/migrations"
+
+[[durable_objects.bindings]]
+name = "ROOM_HUB"
+class_name = "RoomHub"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RoomHub"]
+
+[triggers]
+crons = ["* * * * *"]
+
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"

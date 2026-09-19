@@ -32,6 +32,10 @@ export default {
       return jsonResponse({ code: "0000", data: { ok: true, stamp: Date.now() } })
     }
 
+    if (env.ASSETS && (request.method === "GET" || request.method === "HEAD")) {
+      return env.ASSETS.fetch(request)
+    }
+
     return jsonResponse({ code: "E4004", errMsg: "path not found" }, 404)
   },
 

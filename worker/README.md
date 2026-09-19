@@ -30,8 +30,10 @@ npm run d1:migrate
 npm run deploy
 ```
 
-The Deploy to Cloudflare button in the repository README can also create the
-Worker and its D1/Durable Object resources through Cloudflare's setup flow.
+The Deploy to Cloudflare button in the repository README uses the root
+configuration instead. It builds and serves the frontend together with the
+Worker. This `worker/` configuration intentionally deploys only backend
+resources and does not include static assets.
 
 ## Run locally
 

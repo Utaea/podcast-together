@@ -100,4 +100,5 @@ export interface WsRes {
 export interface Env {
   DB: D1Database
   ROOM_HUB: DurableObjectNamespace
+  ASSETS?: Fetcher
 }

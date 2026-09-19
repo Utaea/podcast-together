@@ -2,10 +2,11 @@
 
 The backend and frontend are deployed separately:
 
-- Use the **Deploy to Cloudflare** button in the root README for the Worker backend.
+- Use the **Deploy to Cloudflare** button in the root README for the full application.
 - Use Cloudflare Pages' Git integration for the frontend.
 
-The button targets `worker/`, so it does not deploy the Vue frontend.
+The button targets the repository root. It builds the Vue frontend and deploys
+the static assets together with the Worker.
 
 ## Frontend (Cloudflare Pages)
 
@@ -33,6 +34,15 @@ Backend source is in `worker/`.
 - D1 schema migration: `worker/migrations/0001_init.sql`
 - Cron trigger configured in `worker/wrangler.toml`
 
+### Deployment modes
+
+- **Deploy to Cloudflare button**: uses the root `wrangler.toml`, runs the
+  frontend build, and serves `dist/` from the Worker. The Worker handles API
+  and WebSocket routes first, then serves the SPA for other browser requests.
+- **Manual backend deployment**: run commands in `worker/`. It uses
+  `worker/wrangler.toml`, which has no assets configuration and deploys only
+  the API, WebSocket, D1, Durable Object, and Cron resources.
+
 ## Useful commands (from repository root)
 
 ```bash
@@ -41,6 +51,12 @@ npm run cf:worker:typecheck
 npm run cf:worker:migrate
 npm run cf:worker:deploy
 npm run pages:deploy
+```
+
+The root command used by the Deploy to Cloudflare build is:
+
+```bash
+npm run deploy
 ```
 
 ## Manual Worker setup
