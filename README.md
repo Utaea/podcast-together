@@ -1,5 +1,7 @@
 # 一起听播客
 
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Utaea/podcast-together/tree/main/worker)
+
 <img src="./resources/screenshot_index.png" width="700" />
 
 <img src="./resources/screenshot_listening.png" width="700" />
@@ -14,9 +16,7 @@
 
 <img src="./resources/xyz_share.jpg" width="500" />
 
-2. 访问 [https://podcastogether.com/](https://podcastogether.com/) 创建房间，依页面的提示黏贴上一步复制到的链接，即可创建能跟好友一起实时聆听的播客房间啦！
-
-详情参见[使用指南](https://yenche.zhubai.love/posts/2172097942360440832)
+2. 访问部署后的前端地址创建房间，依页面提示粘贴上一步复制的链接即可。
 
 <br>
 
@@ -34,9 +34,7 @@
 
 目前已知支持 `xiaoyuzhoufm.com/episode/` 或者 `podcasts.apple.com/cn/` 的链接（不支持短链），后者解析稍慢是正常的，如果解析失败不妨稍后再尝试。
 
-另外，还支持 https 协议的 CDN 链接，也就是你上传 `.mp3` 文件至任意可公网访问的云上，获得 https 链接后即可黏贴到 [https://podcastogether.com/create](https://podcastogether.com/create) 中一起听。
-
-更多音源详情请参见[这里](https://github.com/yenche123/podcast-together/discussions/3)
+另外，还支持 https 协议的 CDN 链接，也就是你上传 `.mp3` 文件至任意可公网访问的云上，获得 https 链接后即可粘贴到创建页面中一起听。
 
 ### 3 支持深色模式
 
@@ -54,17 +52,10 @@
 
 <br>
 
-## 🧑‍💻 自行构建/部署
+## 🧑‍💻 部署
 
-非常欢迎自己兜一套减轻我的云服务资源，详情参见[语雀文档](https://www.yuque.com/cuiyanzhe/sx698m/etgegl)
-
-<br>
-
-## ✉️ 联系我
-
-1. Github [讨论区](https://github.com/yenche123/podcast-together/discussions)
-
-2. [Email](mailto:tsuiyenche@outlook.com)
+本项目支持将前端独立部署到 Cloudflare Pages，后端部署到 Cloudflare Workers。
+具体步骤参见 [`CLOUDFLARE.md`](./CLOUDFLARE.md)。
 
 <br>
 
@@ -80,43 +71,31 @@
 
 让前端开发具备类型检查的能力。我常阅读[这份指南](https://ts.xcatliu.com/)
 
-3. [Laf](https://www.lafyun.com/)
+3. [Shikwasa](https://github.com/jessuni/shikwasa)
 
-完全开源的一站式后端开发平台，像写博客一样写代码！
+一个开源、专为播客设计的前端网页播放器。
 
-4. [Shikwasa](https://github.com/jessuni/shikwasa)
-
-一个开源、专为播客设计的前端网页播放器。本项目对其做了[定制](https://github.com/yenche123/shikwasa)。
-
-5. [pnpm](https://www.pnpm.cn/)
+4. [pnpm](https://www.pnpm.cn/)
 
 对 npm 软件包管理器做了一系列改进。
 
-6. [小宇宙](https://www.xiaoyuzhoufm.com/)
+5. [小宇宙](https://www.xiaoyuzhoufm.com/)
 
 感谢小宇宙的单集链接支持 Open-Graph 协议，能获取到 og:audio 的 meta 标签
 
-7. [fluentui-emoji](https://github.com/microsoft/fluentui-emoji)
+6. [fluentui-emoji](https://github.com/microsoft/fluentui-emoji)
 
 感谢微软开源的 emoji，非常 Nice!!!
 
-8. [uiball-loaders](https://uiball.com/loaders/)
+7. [uiball-loaders](https://uiball.com/loaders/)
 
 超好看且好用的加载图标/动画，没有之一。
 
-9. 你
+8. 你
 
 ~~谢谢你玩我~~
 
 谢谢你看到这里！
-
-<br>
-
-## 支持我
-
-<img src="./resources/appreciation_code.jpg" width="200" />
-
-如果有帮助到你，欢迎向我打赏，请我喝☕
 
 ## 开源协议
 

@@ -5,7 +5,6 @@ compatibility_date = "2026-02-25"
 [[d1_databases]]
 binding = "DB"
 database_name = "podcast_together"
-database_id = "31b2dd37-aa18-47fb-91d9-52eec4fcdd23"
 migrations_dir = "migrations"
 
 [[durable_objects.bindings]]

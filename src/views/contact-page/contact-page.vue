@@ -2,7 +2,10 @@
 import { useTheme } from '../../hooks/useTheme';
 import images from '../../images';
 import { useContactPage } from './tools/useContactPage';
+import util from '../../utils/util';
 let { theme } = useTheme()
+const discussionsUrl = util.getEnv().PROJECT_DISCUSSIONS_URL ?? ""
+const wechatConfigured = Boolean(util.getEnv().CONTACT_WECHAT)
 
 let {
   onTapWeChat,
@@ -25,7 +28,7 @@ const doNothing = (e: Event) => {
     <h1>联系我</h1>
 
     <!-- 微信群 -->
-    <div class="contact-item" @click="onTapWeChat">
+    <div v-if="wechatConfigured" class="contact-item" @click="onTapWeChat">
       <div class="div-bg-img ci-img ci-img_wechat"></div>
       <div class="ci-text">
         <span>微信群</span>
@@ -33,7 +36,7 @@ const doNothing = (e: Event) => {
     </div>
 
     <!-- Github Discussions -->
-    <a class="contact-item" href="https://github.com/yenche123/podcast-together/discussions" target="_blank">
+    <a v-if="discussionsUrl" class="contact-item" :href="discussionsUrl" target="_blank">
       <div class="div-bg-img ci-img ci-img_github"></div>
       <div class="ci-text">
         <span>Github 讨论区</span>

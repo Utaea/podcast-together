@@ -12,9 +12,14 @@ const imgData = reactive({
 })
 
 const onTapWeChat = () => {
+  const wechatLink = _env.CONTACT_WECHAT
+  if(!wechatLink) {
+    console.log("尚未配置 wechat link..........");
+    return
+  }
   const cha = ptApi.getCharacteristic()
   if(cha.isWeChat) {
-    window.open("https://work.weixin.qq.com/gm/7da1a2b2a7ed6b6458a2535d95ac685b", "wecom")
+    window.open(wechatLink, "wecom")
     return
   }
 

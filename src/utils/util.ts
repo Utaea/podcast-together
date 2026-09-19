@@ -66,9 +66,12 @@ const getEnv = (): EnvType => {
   const API_URL = trimSlash(apiFromEnv || origin)
   const WEBSOCKET_URL = trimSlash(wsFromEnv || toWebSocketOrigin(origin))
   const HEARTBEAT_PERIOD = import.meta.env.VITE_HEARTBEAT_PERIOD ?? "15"
+  const PROJECT_URL = import.meta.env.VITE_PROJECT_URL
+  const PROJECT_DISCUSSIONS_URL = import.meta.env.VITE_PROJECT_DISCUSSIONS_URL
   const THIRD_PARTY_SETTING_URL = import.meta.env.VITE_THIRD_PARTY_SETTING_URL
   const CONTACT_EMAIL = import.meta.env.VITE_CONTACT_EMAIL
   const CONTACT_FEISHU = import.meta.env.VITE_CONTACT_FEISHU
+  const CONTACT_WECHAT = import.meta.env.VITE_CONTACT_WECHAT
   const PLAUSIBLE_SRC = import.meta.env.VITE_PLAUSIBLE_SRC
   const PLAUSIBLE_DOMAIN = import.meta.env.VITE_PLAUSIBLE_DOMAIN
 
@@ -77,9 +80,12 @@ const getEnv = (): EnvType => {
     WEBSOCKET_URL,
     API_URL,
     HEARTBEAT_PERIOD: Number(HEARTBEAT_PERIOD),
+    PROJECT_URL,
+    PROJECT_DISCUSSIONS_URL,
     THIRD_PARTY_SETTING_URL,
     CONTACT_EMAIL,
     CONTACT_FEISHU,
+    CONTACT_WECHAT,
     PLAUSIBLE_SRC,
     PLAUSIBLE_DOMAIN,
   }

@@ -76,12 +76,6 @@ onActivated(() => {
         ref="inputEl"
       />
       <p>提示: 目前支持 xiaoyuzhoufm.com、podcasts.apple.com/cn/ 或者后缀为 .mp3 的链接</p>
-      <p class="check-detail">
-        <a href="https://yenche.zhubai.love/posts/2172097942360440832" target="_blank">
-          <div class="div-bg-img check-detail-question"></div>
-          <span>查看详情</span>
-        </a>
-      </p>
     </div>
     <div class="page-btns-virtual"></div>
   </div>

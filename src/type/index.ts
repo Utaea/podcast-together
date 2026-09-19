@@ -66,9 +66,12 @@ export interface EnvType {
   WEBSOCKET_URL: string
   API_URL: string
   HEARTBEAT_PERIOD: number
+  PROJECT_URL?: string
+  PROJECT_DISCUSSIONS_URL?: string
   THIRD_PARTY_SETTING_URL?: string
   CONTACT_EMAIL?: string
   CONTACT_FEISHU?: string
+  CONTACT_WECHAT?: string
   PLAUSIBLE_DOMAIN?: string
   PLAUSIBLE_SRC?: string
 }

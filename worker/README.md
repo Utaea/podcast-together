@@ -13,7 +13,7 @@ This directory contains the Cloudflare backend for Podcast Together.
 
 - Node.js 20+
 - Wrangler login (`wrangler login`)
-- A created D1 database
+- A Cloudflare account with permission to create Workers, D1 databases, and Durable Objects
 
 ## First-time setup
 
@@ -23,30 +23,20 @@ This directory contains the Cloudflare backend for Podcast Together.
 npm install
 ```
 
-2. Create D1 database:
-
-```bash
-wrangler d1 create podcast_together
-```
-
-3. Copy returned `database_id` into `worker/wrangler.toml` (`[[d1_databases]].database_id`).
-
-4. Apply schema migrations:
+2. Apply schema migrations and deploy:
 
 ```bash
 npm run d1:migrate
+npm run deploy
 ```
+
+The Deploy to Cloudflare button in the repository README can also create the
+Worker and its D1/Durable Object resources through Cloudflare's setup flow.
 
 ## Run locally
 
 ```bash
 npm run dev
-```
-
-## Deploy
-
-```bash
-npm run deploy
 ```
 
 ## Frontend env alignment

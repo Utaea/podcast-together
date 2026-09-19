@@ -6,8 +6,9 @@ import { onActivated } from "vue";
 import share from "../../utils/share";
 import { useTheme } from "../../hooks/useTheme";
 import { useAddToHomeScreen } from "./tools/useAddToHomeScreen";
+import util from "../../utils/util";
 
-const OPEN_SOURCE_URL = "https://github.com/yenche123/podcast-together"
+const OPEN_SOURCE_URL = util.getEnv().PROJECT_URL ?? ""
 const { showInstallPwaBtn, onTapInstall } = useAddToHomeScreen()
 let { theme } = useTheme()
 const router = useRouter()
@@ -29,7 +30,7 @@ const onTapCreateBtn = (e: Event) => {
       <div class="div-bg-img index-icon-img"></div>
       <h1>一起听播客</h1>
 
-      <a v-if="showInstallPwaBtn" class="index-opensource-url" :href="OPEN_SOURCE_URL" target="_blank">
+      <a v-if="showInstallPwaBtn && OPEN_SOURCE_URL" class="index-opensource-url" :href="OPEN_SOURCE_URL" target="_blank">
         <img :src="theme === 'light' ? images.GITHUB : images.GITHUB_DM" class="index-ou-github"/>
       </a>
     </div>
@@ -39,7 +40,7 @@ const onTapCreateBtn = (e: Event) => {
     <div class="page-btns">
       <pt-button class="index-main-btn" text="创建房间" @click="onTapCreateBtn"></pt-button>
 
-      <a v-if="!showInstallPwaBtn" :href="OPEN_SOURCE_URL" target="_blank">
+       <a v-if="!showInstallPwaBtn && OPEN_SOURCE_URL" :href="OPEN_SOURCE_URL" target="_blank">
         <div class="index-other-btn">
           <img :src="theme === 'light' ? images.GITHUB : images.GITHUB_DM" class="index-github"/>
           <span>开源地址</span>
@@ -50,9 +51,7 @@ const onTapCreateBtn = (e: Event) => {
         <span>安装应用</span>
       </div>
       
-      <p class="page-btns-p">
-        本项目由开源 Serverless 平台 <a class="pbp-a" href="https://www.lafyun.com/" target="_blank">Laf</a> 全力驱动支持
-      </p>
+       <p class="page-btns-p">由 Cloudflare Workers 和 Pages 提供部署支持</p>
     </div>
   </div>
 
